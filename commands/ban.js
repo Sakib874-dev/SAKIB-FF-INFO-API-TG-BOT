@@ -19,8 +19,8 @@ module.exports = {
 
         const uid = args[0];
         
-        if (!/^\d{7,10}$/.test(uid)) {
-            return ctx.reply('Invalid UID. UID should be 7-10 digits.');
+        if (!/^\d+$/.test(uid)) {
+            return ctx.reply('Invalid UID. UID should be numbers only.');
         }
 
         const waitMessage = await ctx.reply('Checking ban status...');
@@ -34,64 +34,65 @@ module.exports = {
                 timeout: 45000
             });
 
-            if (response.headers['content-type'] && response.headers['content-type'].includes('image')) {
-                await ctx.replyWithPhoto(
-                    { source: Buffer.from(response.data) }, 
-                    { 
-                        reply_to_message_id: ctx.message.message_id,
-                        caption: `UID: ${uid}`
-                    }
-                );
-            } else {
-                try {
-                    const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
-                    
-                    if (data.success) {
-                        const message = `
-🛡️ Ban Status Check 🛡️
-
-🆔 UID: ${uid}
-✅ API Status: ${data.success ? 'Successful' : 'Failed'}
-
-${data.isBanned ? '🔴 ACCOUNT BANNED 🔴' : '🟢 ACCOUNT CLEAN 🟢'}
-
-${data.banDetails ? `
-📜 Ban Details:
-• Reason: ${data.banDetails.reason || 'N/A'}
-• Date: ${data.banDetails.date || 'N/A'}
-• Duration: ${data.banDetails.duration || 'N/A'}
-` : ''}
-
-${data.lastChecked ? `📅 Last Checked: ${data.lastChecked}` : ''}
-${data.message ? `\n📝 Note: ${data.message}` : ''}
-                        `.trim();
-                        
-                        await ctx.reply(message, { 
-                            reply_to_message_id: ctx.message.message_id 
-                        });
-                    } else {
-                        await ctx.reply(`API Error: ${data.message || 'Unknown error'}\nUID: ${uid}`, { 
-                            reply_to_message_id: ctx.message.message_id 
-                        });
-                    }
-                } catch (jsonError) {
-                    await ctx.reply(`Response:\n${response.data.toString().substring(0, 4000)}\nUID: ${uid}`, { 
-                        reply_to_message_id: ctx.message.message_id 
-                    });
-                }
+            const data = response.data;
+            
+            if (!data.success) {
+                return ctx.reply(`Error: ${data.message || 'Failed to check ban status'}\nUID: ${uid}`, { 
+                    reply_to_message_id: ctx.message.message_id 
+                });
             }
+
+            let message = `🛡️ *Ban Status Check*\n\n`;
+            message += `🆔 UID: \`${uid}\`\n`;
+            message += `✅ API Status: Successful\n\n`;
+            
+            if (data.isBanned) {
+                message += `🔴 *ACCOUNT BANNED* 🔴\n\n`;
+                
+                if (data.banDetails) {
+                    message += `📜 *Ban Details:*\n`;
+                    message += `• Reason: ${data.banDetails.reason || 'Not specified'}\n`;
+                    message += `• Date: ${data.banDetails.date || 'Unknown'}\n`;
+                    message += `• Duration: ${data.banDetails.duration || 'Permanent'}\n`;
+                }
+            } else {
+                message += `🟢 *ACCOUNT NOT BANNED* 🟢\n`;
+            }
+            
+            if (data.lastChecked) {
+                message += `\n📅 Last Checked: ${data.lastChecked}`;
+            }
+            
+            if (data.message) {
+                message += `\n\n📝 Note: ${data.message}`;
+            }
+
+            await ctx.reply(message, { 
+                parse_mode: 'Markdown',
+                reply_to_message_id: ctx.message.message_id 
+            });
             
         } catch (error) {
             let errorMessage = `Failed to check ban status for UID: ${uid}\n\n`;
             
-            if (error.code === 'ECONNABORTED') {
+            if (error.response) {
+                if (error.response.status === 404) {
+                    errorMessage += 'API endpoint not found.';
+                } else if (error.response.status === 400) {
+                    errorMessage += 'Bad request. Check UID format.';
+                } else {
+                    errorMessage += `Server error: ${error.response.status}`;
+                }
+                
+                if (error.response.data && error.response.data.message) {
+                    errorMessage += `\nMessage: ${error.response.data.message}`;
+                }
+            } else if (error.code === 'ECONNABORTED') {
                 errorMessage += 'Request timed out.';
-            } else if (error.response) {
-                errorMessage += `Server Error: ${error.response.status}`;
             } else if (error.request) {
                 errorMessage += 'No response from server.';
             } else {
-                errorMessage += 'Please try again later.';
+                errorMessage += `Error: ${error.message}`;
             }
             
             await ctx.reply(errorMessage, { 
@@ -102,14 +103,7 @@ ${data.message ? `\n📝 Note: ${data.message}` : ''}
             try {
                 await ctx.telegram.deleteMessage(ctx.chat.id, waitMessage.message_id);
             } catch (deleteError) {
-                try {
-                    await ctx.telegram.editMessageText(
-                        ctx.chat.id, 
-                        waitMessage.message_id, 
-                        null, 
-                        'Check completed!'
-                    );
-                } catch (editError) {}
+                console.log('Could not delete wait message');
             }
         }
     }
