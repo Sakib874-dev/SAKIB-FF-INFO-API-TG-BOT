@@ -3,6 +3,7 @@
     "ownerUid": 6988080383,
     "botToken": "7117217061:AAE7z6Ud51_U5KnxIhdEshjL8VnFtbLi8u4",
     "baseUrl": "https://sakib-ff-info-api.vercel.app",
+    "banCheckUrl": "https://sakib-ff-ban-chack-api.vercel.app/bancheck",
     "botPrefix": "/",
     "allowedGroupId": -1002593431759,
     "allowedGroupLink": "https://t.me/sxdbotservice",
