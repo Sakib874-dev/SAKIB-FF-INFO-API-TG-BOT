@@ -31,13 +31,12 @@ First, clone the repository to your local machine and install the necessary depe
 
 # Clone the repository
 
-git  clone  https://github.com/1dev-hridoy/FreeFire-Info-TelegramBot.git
-
+git  clone  https://github.com/Sakib874-dev/SAKIB-FF-INFO-API-TG-BOT.git
   
 
 # Navigate to the project directory
 
-cd  FreeFire-Info-TelegramBot
+cd  SAKIB-FF-INFO-API-TG-BOT
 
   
 
